@@ -28,6 +28,11 @@ public class MainActivity extends Activity {
     private String startUrl = "";
     private String origin = "";
 
+    /** 输入框是否已经在显示（避免连不上时重复弹）。 */
+    private boolean asking;
+    /** 上一次自动弹窗的时间，用于节流。 */
+    private long lastPromptAt;
+
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -62,7 +67,14 @@ public class MainActivity extends Activity {
             @Override
             public void run() {
                 // 地址或 token 不对时网页只剩一行英文提示，这时让用户重新填
-                askForUrl(false);
+                promptAgain();
+            }
+        };
+        client.onLoadFailed = new Runnable() {
+            @Override
+            public void run() {
+                // 整页都没加载出来（域名/端口不对、连不上），也让他重新填一次
+                promptAgain();
             }
         };
         web.setWebViewClient(client);
@@ -72,11 +84,27 @@ public class MainActivity extends Activity {
         Preloader.kick(this, url, origin);
     }
 
+    /** 自动重新弹窗：已经在弹、或刚弹过就不重复弹。 */
+    private void promptAgain() {
+        if (asking) {
+            return;
+        }
+        if (System.currentTimeMillis() - lastPromptAt < 3000L) {
+            return;
+        }
+        lastPromptAt = System.currentTimeMillis();
+        askForUrl(false);
+    }
+
     /**
      * 弹窗让用户填地址。firstRun=true 时不可取消（没有地址没法用），
      * 否则可以取消（只是回到原来的页面）。
      */
     private void askForUrl(final boolean firstRun) {
+        if (asking) {
+            return;
+        }
+        asking = true;
         final EditText input = new EditText(this);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         input.setSingleLine(true);
@@ -94,7 +122,7 @@ public class MainActivity extends Activity {
 
         AlertDialog.Builder b = new AlertDialog.Builder(this)
                 .setTitle(firstRun ? "填一下你的 DSH Web 地址" : "这个地址没连上，重新填一下")
-                .setMessage("填一下你的 DSH 的 Web 地址（公网 IP 或局域网 IP 都行）。注意：你得先用手机浏览器打开这条链接、确认能进到界面里；如果打开后没直接开始加载，说明你没连成，请卸载重装再填。")
+                .setMessage("填一下你的 DSH 的 Web 地址（公网 IP 或局域网 IP 都行）。注意：先用手机浏览器打开这条链接、确认能进到界面里，再填进来。")
                 .setView(box)
                 .setPositiveButton("开始使用", new DialogInterface.OnClickListener() {
                     @Override
@@ -108,6 +136,12 @@ public class MainActivity extends Activity {
         AlertDialog dialog = b.create();
         dialog.setCancelable(!firstRun);
         dialog.setCanceledOnTouchOutside(false);
+        dialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
+            @Override
+            public void onDismiss(DialogInterface d) {
+                asking = false;
+            }
+        });
         dialog.show();
     }
 

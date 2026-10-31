@@ -39,6 +39,11 @@ public final class SkinWebClient extends WebViewClient {
     /** 检测到「需要登录」页时回调，让 Activity 重新弹窗让用户改地址。 */
     public Runnable onAuthRequired;
 
+    /** 整页都没加载出来（连不上、也没有缓存）时回调，同样让用户重新填一次地址。 */
+    public Runnable onLoadFailed;
+
+    private volatile boolean loadFailedReported;
+
     private String skinCss;
     private String skinJs;
     private volatile boolean harvesting;
@@ -69,6 +74,7 @@ public final class SkinWebClient extends WebViewClient {
             byte[] body = Policy.load(loader, cache, url, document, origin);
             if (body == null) {
                 if (document) {
+                    notifyLoadFailed();
                     return offlinePage();
                 }
                 return null;
@@ -77,6 +83,7 @@ public final class SkinWebClient extends WebViewClient {
                 maybeRefresh(url);
             }
             if (document) {
+                loadFailedReported = false;
                 ensureSkinLoaded();
                 body = Web.withSkin(body, skinCss, skinJs);
             }
@@ -84,6 +91,38 @@ public final class SkinWebClient extends WebViewClient {
         } catch (Throwable t) {
             return null;
         }
+    }
+
+    /** 整页失败只上报一次，避免同一次加载里反复弹窗。 */
+    private void notifyLoadFailed() {
+        if (loadFailedReported) {
+            return;
+        }
+        loadFailedReported = true;
+        ui.post(new Runnable() {
+            @Override
+            public void run() {
+                if (onLoadFailed != null) {
+                    onLoadFailed.run();
+                }
+            }
+        });
+    }
+
+    @Override
+    public void onReceivedError(WebView view, WebResourceRequest request,
+                                android.webkit.WebResourceError error) {
+        super.onReceivedError(view, request, error);
+        if (request != null && request.isForMainFrame()) {
+            notifyLoadFailed();
+        }
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
+        super.onReceivedError(view, errorCode, description, failingUrl);
+        notifyLoadFailed();
     }
 
     private boolean hasNetwork() {
@@ -109,7 +148,7 @@ public final class SkinWebClient extends WebViewClient {
                 + "justify-content:center;text-align:center}div{padding:24px;max-width:320px}"
                 + "b{display:block;font-size:17px;margin-bottom:10px;color:#fff}"
                 + "span{color:#9AA3B2;font-size:13px}</style>"
-                + "<div><b>没连上</b><span>可能没连接成功？卸载重装再填一次地址试试。</span></div>";
+                + "<div><b>没连上</b><span>可能没连接成功。稍等一下，会弹出输入框让你重新填地址。</span></div>";
         return new WebResourceResponse("text/html", "utf-8",
                 new ByteArrayInputStream(html.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
     }

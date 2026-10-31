@@ -1,4 +1,4 @@
-# dsh webapp —— 开发者交接文档（v2.1.3）
+# dsh webapp —— 开发者交接文档（v2.1.4）
 
 > 面向接手这个 App 项目的工程师 / Agent。看完这份文档应当能：读懂代码、改皮肤、重建 APK、自测、发版。
 > 用户可读的版本说明在 [`README.md`](README.md)，本文是**代码层**的交接。
@@ -108,6 +108,15 @@ onPageFinished
 - 返回 `Result{code, body, finalUrl}`；非 2xx 或空体视为失败，让 `Policy` 回退缓存。
 
 **改这里要小心**：登录态只靠 cookie，cookie 过期（30 天）后必须重新用带 token 的 URL 打开一次。
+
+**地址填错时的两条回弹路径**（2.1.4 起两条都接）：
+
+- token 错 ⇒ 服务端回上面那行英文 ⇒ `SkinWebClient.checkAuthPage()` 用 `evaluateJavascript` 探测到
+  `authentication required` ⇒ `onAuthRequired` ⇒ `MainActivity.promptAgain()`；
+- 域名/端口/路径错或服务端没开 ⇒ 主文档 `Policy.load` 返回 null（走兜底页），或 WebView 报
+  `onReceivedError`（主框架）⇒ `SkinWebClient.onLoadFailed` ⇒ 同样回到 `promptAgain()`。
+- `promptAgain()` 自带 3 秒节流 + `asking` 去重（`askForUrl` 进入时置位、`OnDismissListener` 复位），
+  所以一次失败只会弹一次，不会连环弹。
 `START_URL` 里始终带 token，所以正常使用不会掉线；但如果 token 换了，改 `Web.START_URL` 重新打包。
 
 ## 5. 关键机制二：缓存与断网首屏

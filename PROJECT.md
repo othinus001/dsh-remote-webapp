@@ -248,6 +248,7 @@ bash build.sh                    # 产物 out/dsh-shell.apk
 | 1.5 | 设置面板左栏 25% + 账号卡片换行 |
 | 1.6 | 设置面板左栏 15%（改上下排图标 + 9px 小字） |
 | 2.0 | **抽屉式重写**：侧栏变 280px 抽屉 + 遮罩，内容满屏；纯 CSS + data 属性（只新增 1 个设置按钮节点）；头部标题独占第一行；设置面板改全屏 sheet + 顶部 tab 条 |
+| 2.1.4 | 连不上也自动重弹地址输入框：主文档取不到（`Policy.load` 返回 null → 兜底页）或 WebView 报 `onReceivedError` 时，通过 `SkinWebClient.onLoadFailed` 回到 `MainActivity.promptAgain()`（3 秒节流 + `asking` 去重）。此前只有 token 错（页面含 `authentication required`）才会重弹，域名/端口错只能卸载重装 |
 | 2.1.3 | 「刷新」改为清空本机网页端全部 `dsh-dream-skin:*` 键再重新加载（网页回到出厂状态，等同新客户端），保存的预设存放在 `dsh-app:theme-presets`，不受影响 |
 | 2.1.2 | 修三个 bug：①侧栏「设置」点开变成主题预设弹窗（合成按钮选择器误命中 `.dsh-preset-btn`）；②「刷新」改成重新加载当前预设；③设置面板打开时不再抢左上角入口、也不吞面板里的点击，插件页开关/条目恢复正常 |
 | 2.1.1 | 新增「主题预设」：侧栏「设置」上方一个按钮，弹窗里 3 个槽位 + 保存/删除/刷新；预设只存本机（localStorage 里 `dsh-dream-skin:*` 的快照），所以手机能留住自己的主题。首次启动弹窗文案改为用户指定版本，断网兜底页文案也简化 |
