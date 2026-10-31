@@ -1,0 +1,12 @@
+# 构建产物
+build/
+out/
+*.idsig
+
+# 工具链（约 300 MB，用 tools/fetch-toolchain.sh 现下）
+toolchain/
+
+# 签名证书：仓库里带一份固定 keystore，保证任何人构建出来的包都能覆盖安装（口令 dshshell）
+# 只有这一份，别把自己新生成的密钥塞进来
+keystore/*.jks
+keystore/*.p12
